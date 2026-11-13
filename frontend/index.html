@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F766E" />
+  <meta name="description" content="FitWell Journal — 记录吃饭与睡眠时间，获取食谱推荐与趋势洞察的健身健康日志" />
+  <title>FitWell Journal 健身健康日志</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- React 挂载点 -->
+  <div id="root"></div>
+
+  <!-- vendor 依赖（已本地化到 vendor/，下载脚本见 README） -->
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script src="vendor/htm.umd.js"></script>
+
+  <!-- 应用代码（依赖顺序：api -> charts -> app） -->
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // 注册 Service Worker（PWA 离线外壳）
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (err) {
+          console.warn('Service Worker 注册失败:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

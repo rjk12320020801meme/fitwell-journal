@@ -1,0 +1,26 @@
+{
+  "name": "FitWell Journal 健身健康日志",
+  "short_name": "FitWell",
+  "description": "记录吃饭与睡眠时间，获取食谱推荐与趋势洞察的健身健康日志",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0F766E",
+  "background_color": "#F6F8F7",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 数据（用户隐私）
+backend/data/
+*.tmp
+
+# Node（如有）
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
