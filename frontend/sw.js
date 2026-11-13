@@ -5,7 +5,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'fitwell-shell-v0.1.0';
+const CACHE_VERSION = 'fitwell-shell-v0.1.1';
 
 // 应用外壳静态资源清单
 const SHELL_ASSETS = [

@@ -27,16 +27,9 @@
 | awakenings | int | | ≥0 | 夜间醒来次数 |
 | nap_min | int | | ≥0 | 午睡分钟数 |
 
-### 1.3 SubjectiveEntry 主观状态（type: `subjective`）
+### 1.3 ~~SubjectiveEntry 主观状态~~（v0.1.1 移除）
 
-| 字段 | 类型 | 必填 | 约束 | 说明 |
-|---|---|---|---|---|
-| date | str | ✅ | YYYY-MM-DD | |
-| energy | int | ✅ | 1–5 | 精力 |
-| stress | int | ✅ | 1–5 | 压力 |
-| mood | int | | 1–5 | 心情 |
-| hunger | int | | 1–5 | 饥饿感 |
-| cravings | int | | 1–5 | 对高热量食物的渴望 |
+心情/压力/精力/饥饿/渴望等主观打分已整体移除：它们主观、不可控，违背"只记录简单可控的数据"的产品宗旨。`subjective` 不再是合法记录类型（POST 返回 404）。
 
 ### 1.4 BodyEntry 身体指标（type: `body`）
 
@@ -73,31 +66,37 @@
 
 ## 2. 存储格式
 
+顶层键与记录类型同名（单数）：
+
 ```json
 {
   "version": 1,
-  "meals":      [ { "id": "…", "date": "2026-11-14", "time": "08:30", "meal_type": "breakfast", "...": "…" } ],
-  "sleep":      [ … ],
-  "subjective": [ … ],
-  "body":       [ … ],
-  "training":   [ … ],
-  "lab":        [ … ]
+  "meal":      [ { "id": "…", "date": "2026-11-14", "time": "08:30", "meal_type": "breakfast", "...": "…" } ],
+  "sleep":     [ … ],
+  "body":      [ … ],
+  "training":  [ … ],
+  "lab":       [ … ]
 }
 ```
+
+节奏目标单独存 `settings.json`：`{"window_start":"10:00","window_end":"19:00","bed_target":"23:00","wake_target":"07:00"}`。
 
 ## 3. HTTP API 一览
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/records/{meal\|sleep\|subjective\|body\|training\|lab}` | 新建记录，201 返回含 id 的记录 |
-| GET | `/api/records?from=&to=` | 查询全部类型记录（按日期过滤，均可省略） |
+| POST | `/api/records/{meal\|sleep\|body\|training\|lab}` | 新建记录，201 返回含 id 的记录 |
+| GET | `/api/records?from=&to=` | 查询，返回 `{"meal":[],"sleep":[],"body":[],"training":[],"lab":[]}` |
 | DELETE | `/api/records/{type}/{id}` | 删除，204 |
-| GET | `/api/report/weekly?end_date=` | 周报（分数/cards/series），end_date 默认今天 |
+| GET | `/api/report/weekly?end_date=` | 周报（档位/cards/series），end_date 默认今天 |
+| GET | `/api/settings` | 节奏目标（进食窗口/就寝/起床） |
+| PUT | `/api/settings` | 更新节奏目标（字段均为可选 HH:MM） |
+| GET | `/api/rhythm/today?now=HH:MM` | 今日节奏提示（now 可选，测试用）→ `{now, phase, title, message, next_time, next_label}` |
 | GET | `/api/recipes?goal=&slot=&q=` | 食谱摘要列表 |
 | GET | `/api/recipes/{id}` | 完整食谱（含 ingredients/steps） |
 | GET | `/api/health` | 健康检查 |
 
-周报响应结构见 [insights-rules.md](insights-rules.md#5-周报响应结构)。
+周报响应结构见 [insights-rules.md](insights-rules.md#6-周报响应结构)。
 
 ## 4. 数据派生量（不落库，实时计算）
 

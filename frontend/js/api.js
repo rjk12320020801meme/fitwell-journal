@@ -17,13 +17,13 @@
     try {
       res = await fetch(path, init);
     } catch (e) {
-      throw new Error('网络请求失败，请确认后端已启动');
+      throw new Error('网络请求没能连上，请确认后端已启动');
     }
     if (res.status === 204) return null; // DELETE 成功
     let data = null;
     try { data = await res.json(); } catch (e) { /* 空响应体 */ }
     if (!res.ok) {
-      const msg = (data && (data.detail || data.message)) || ('请求失败（HTTP ' + res.status + '）');
+      const msg = (data && (data.detail || data.message)) || ('请求没能完成（HTTP ' + res.status + '）');
       throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
     return data;
@@ -49,9 +49,6 @@
     createSleep: function (body) {
       return request('/api/records/sleep', { method: 'POST', body: body });
     },
-    createSubjective: function (body) {
-      return request('/api/records/subjective', { method: 'POST', body: body });
-    },
     createBody: function (body) {
       return request('/api/records/body', { method: 'POST', body: body });
     },
@@ -62,7 +59,7 @@
       return request('/api/records/lab', { method: 'POST', body: body });
     },
 
-    /** GET /api/records?from=&to= → {meals,sleep,subjective,body,training,lab} */
+    /** GET /api/records?from=&to= → {meal,sleep,body,training,lab}（键名单数） */
     listRecords: function (from, to) {
       return request('/api/records' + qs({ from: from, to: to }));
     },
@@ -76,6 +73,22 @@
     /** GET /api/report/weekly?end_date= → 周报对象 */
     weeklyReport: function (endDate) {
       return request('/api/report/weekly' + qs({ end_date: endDate }));
+    },
+
+    // ---- 节奏目标设置 ----
+    /** GET /api/settings → {window_start,window_end,bed_target,wake_target} */
+    settings: function () {
+      return request('/api/settings');
+    },
+    /** PUT /api/settings → 保存后的设置 */
+    saveSettings: function (body) {
+      return request('/api/settings', { method: 'PUT', body: body });
+    },
+
+    // ---- 今日节奏 ----
+    /** GET /api/rhythm/today?now=HH:MM → {now,phase,title,message,next_time,next_label} */
+    rhythmToday: function (now) {
+      return request('/api/rhythm/today' + qs({ now: now }));
     },
 
     // ---- 食谱 ----

@@ -5,8 +5,8 @@
 输入统一为 trends.build_days() 产出的"日聚合 dict"（day dict）：
   date, meal_times[min], meal_count, snack_count, window_h,
   last_meal_to_bed_min, eat_within_2h_before_bed,
-  bed_min, wake_min, bed_offset_min(20:00锚点), sleep_h,
-  stress, energy, trained
+  bed_min, wake_min, bed_offset_min(20:00锚点), sleep_h, trained, weight_kg
+（v0.1.1 起只有客观数据，不再有主观评分。）
 """
 from __future__ import annotations
 
@@ -236,41 +236,39 @@ def correlation_cards(days: list[dict]) -> list[dict]:
                 "direction": "up" if delta > 0 else "down",
             })
 
-    # 2) 压力与睡前 2h 进食
-    high = [d for d in days if d.get("stress") is not None and d["stress"] >= 4]
-    low = [d for d in days if d.get("stress") is not None and d["stress"] <= 2]
-    if len(high) >= MIN_GROUP and len(low) >= MIN_GROUP:
-        share_high = sum(1 for d in high if d["eat_within_2h_before_bed"]) / len(high)
-        share_low = sum(1 for d in low if d["eat_within_2h_before_bed"]) / len(low)
-        diff_pp = (share_high - share_low) * 100
-        if abs(diff_pp) >= 10:
+    # 2) 睡前进食与当晚睡眠时长（纯客观）
+    late = [d for d in days if d["eat_within_2h_before_bed"] and d.get("sleep_h") is not None]
+    clean = [d for d in days if not d["eat_within_2h_before_bed"] and d.get("sleep_h") is not None
+             and d.get("meal_count", 0) >= 1]
+    if len(late) >= MIN_GROUP and len(clean) >= MIN_GROUP:
+        delta = _mean([d["sleep_h"] for d in late]) - _mean([d["sleep_h"] for d in clean])
+        if abs(delta) >= 0.25:  # 15 分钟
+            word = "短" if delta < 0 else "长"
             cards.append({
                 "kind": "correlation",
-                "title": "压力与睡前进食",
-                "detail": f"压力较高的日子，睡前两小时进食的概率高出 {abs(diff_pp):.0f}%（基于 {len(high) + len(low)} 天数据）",
-                "evidence_days": len(high) + len(low),
-                "direction": "up" if diff_pp > 0 else "down",
+                "title": "睡前进食与睡眠",
+                "detail": f"睡前进食的日子，当晚睡眠平均{word} {abs(delta) * 60:.0f} 分钟（基于 {len(late) + len(clean)} 天数据）",
+                "evidence_days": len(late) + len(clean),
+                "direction": "down" if delta < 0 else "up",
             })
 
-    # 3) 长进食窗口与次日精力
+    # 3) 长进食窗口与当晚睡眠时长（纯客观）
     long_w, mid_w = [], []
     for d in days:
-        if d.get("window_h") is None:
-            continue
-        nxt = next_day(d)
-        if nxt is None or nxt.get("energy") is None:
+        if d.get("window_h") is None or d.get("sleep_h") is None:
             continue
         if d["window_h"] > 11:
-            long_w.append(nxt["energy"])
+            long_w.append(d["sleep_h"])
         elif 8 <= d["window_h"] <= 10:
-            mid_w.append(nxt["energy"])
+            mid_w.append(d["sleep_h"])
     if len(long_w) >= MIN_GROUP and len(mid_w) >= MIN_GROUP:
         delta = _mean(long_w) - _mean(mid_w)
-        if abs(delta) >= 0.3:
+        if abs(delta) >= 0.25:
+            word = "短" if delta < 0 else "长"
             cards.append({
                 "kind": "correlation",
-                "title": "长进食窗口与次日精力",
-                "detail": f"进食窗口超过 11 小时后，次日精力评分平均低 {abs(delta):.1f} 分（基于 {len(long_w) + len(mid_w)} 天数据）",
+                "title": "进食窗口与睡眠",
+                "detail": f"进食窗口超过 11 小时的日子，当晚睡眠平均{word} {abs(delta) * 60:.0f} 分钟（基于 {len(long_w) + len(mid_w)} 天数据）",
                 "evidence_days": len(long_w) + len(mid_w),
                 "direction": "down" if delta < 0 else "up",
             })

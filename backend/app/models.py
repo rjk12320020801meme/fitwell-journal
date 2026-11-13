@@ -14,7 +14,8 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 
 MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
-RECORD_TYPES = ("meal", "sleep", "subjective", "body", "training", "lab")
+# v0.1.1：主观打分项（心情/压力/精力/饥饿/渴望）全部移除——只记录客观事实。
+RECORD_TYPES = ("meal", "sleep", "body", "training", "lab")
 
 
 class ValidationError(ValueError):
@@ -125,27 +126,6 @@ class SleepEntry:
 
 
 @dataclass
-class SubjectiveEntry:
-    date: str
-    energy: int = None
-    stress: int = None
-    mood: int = None
-    hunger: int = None
-    cravings: int = None
-    id: str = field(default_factory=_new_id)
-    created_at: str = field(default_factory=_now_iso)
-
-    def validate(self) -> "SubjectiveEntry":
-        _check_date(self.date)
-        _check_int(self.energy, "energy", 1, 5, required=True)
-        _check_int(self.stress, "stress", 1, 5, required=True)
-        _check_int(self.mood, "mood", 1, 5)
-        _check_int(self.hunger, "hunger", 1, 5)
-        _check_int(self.cravings, "cravings", 1, 5)
-        return self
-
-
-@dataclass
 class BodyEntry:
     date: str
     weight_kg: float = None
@@ -213,7 +193,6 @@ class LabEntry:
 MODEL_BY_TYPE = {
     "meal": MealEntry,
     "sleep": SleepEntry,
-    "subjective": SubjectiveEntry,
     "body": BodyEntry,
     "training": TrainingEntry,
     "lab": LabEntry,

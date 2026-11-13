@@ -17,7 +17,7 @@ from app.trends import build_days, last_meal_to_bed, sleep_duration
 
 
 def make_day(date, meals=("08:30", "12:30", "18:30"), bed="23:30", wake="07:00",
-             snack_count=None, stress=None, energy=None, trained=False):
+             snack_count=None, trained=False):
     """快速构造 day dict（绕过 build_days，直接测打分）。"""
     times = sorted(int(t[:2]) * 60 + int(t[3:]) for t in meals)
     bed_min = int(bed[:2]) * 60 + int(bed[3:])
@@ -35,8 +35,6 @@ def make_day(date, meals=("08:30", "12:30", "18:30"), bed="23:30", wake="07:00",
         "wake_min": wake_min,
         "bed_offset_min": (bed_min - 1200) % 1440,
         "sleep_h": sleep_duration(bed_min, wake_min),
-        "stress": stress,
-        "energy": energy,
         "trained": trained,
         "weight_kg": None,
     }
@@ -114,17 +112,33 @@ class TestCorrelationCards(unittest.TestCase):
         days = [make_day(f"2026-11-{d:02d}") for d in range(10, 13)]  # 每组不足
         self.assertEqual([c for c in correlation_cards(days) if c["title"] == "睡眠不足与加餐"], [])
 
-    def test_stress_late_eating(self):
+    def test_late_eating_shorter_sleep(self):
+        # 睡前进食的日子（23:30 夜宵 + 23:50 上床）vs 干净的日子（18:30 末餐）
         days = []
         for i in range(4):
             days.append(make_day(f"2026-11-{2 * i + 1:02d}", meals=("08:30", "13:00", "23:30"),
-                                 bed="23:50", stress=5))  # 压力高 + 睡前吃
-            days.append(make_day(f"2026-11-{2 * i + 2:02d}", meals=("08:30", "13:00", "18:00"),
-                                 bed="23:00", stress=1))
+                                 bed="23:50", wake="05:30"))   # 夜宵 + 短睡眠
+            days.append(make_day(f"2026-11-{2 * i + 2:02d}", meals=("08:30", "13:00", "18:30"),
+                                 bed="23:00", wake="07:00"))   # 干净 + 8h
         cards = correlation_cards(days)
-        hit = [c for c in cards if c["title"] == "压力与睡前进食"]
+        hit = [c for c in cards if c["title"] == "睡前进食与睡眠"]
         self.assertEqual(len(hit), 1)
-        self.assertEqual(hit[0]["direction"], "up")
+        self.assertEqual(hit[0]["direction"], "down")
+        self.assertIn("短", hit[0]["detail"])
+
+    def test_long_window_shorter_sleep(self):
+        days = []
+        for i in range(4):
+            days.append(make_day(f"2026-11-{2 * i + 1:02d}",
+                                 meals=("08:00", "13:00", "19:00", "23:30"),  # 15.5h 窗口
+                                 bed="23:50", wake="05:30"))
+            days.append(make_day(f"2026-11-{2 * i + 2:02d}",
+                                 meals=("08:00", "12:30", "17:00"),           # 9h 窗口
+                                 bed="23:00", wake="07:00"))
+        cards = correlation_cards(days)
+        hit = [c for c in cards if c["title"] == "进食窗口与睡眠"]
+        self.assertEqual(len(hit), 1)
+        self.assertIn("短", hit[0]["detail"])
 
     def test_all_cards_pass_wording_redline(self):
         days = []
@@ -134,8 +148,6 @@ class TestCorrelationCards(unittest.TestCase):
                 meals=("08:30", "13:00", "19:00", "23:30") if i % 2 else ("08:30", "12:30", "18:30"),
                 wake="05:00" if i % 2 else "07:00",
                 snack_count=2 if i % 2 else 0,
-                stress=5 if i % 2 else 1,
-                energy=2 if i % 2 else 4,
                 trained=bool(i % 3)))
         for card in correlation_cards(days):
             for text in (card["title"], card["detail"]):
@@ -160,7 +172,6 @@ class TestBuildDays(unittest.TestCase):
                 {"date": "2026-11-14", "time": "23:30", "meal_type": "snack"},
             ],
             "sleep": [{"date": "2026-11-14", "bed_time": "23:50", "wake_time": "07:00"}],
-            "subjective": [{"date": "2026-11-14", "energy": 4, "stress": 2}],
             "training": [{"date": "2026-11-14", "time": "18:00", "type": "力量", "duration_min": 60}],
             "body": [{"date": "2026-11-14", "weight_kg": 70.2}],
             "lab": [],

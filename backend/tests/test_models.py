@@ -32,13 +32,10 @@ class TestModels(unittest.TestCase):
                                       "quality": 4, "nap_min": 30})
         self.assertEqual(r["wake_time"], "07:00")
 
-    def test_subjective_ranges(self):
+    def test_subjective_removed(self):
+        # v0.1.1：主观打分项已整体移除
         with self.assertRaises(ValidationError):
-            validate_record("subjective", {"date": "2026-11-14", "energy": 6, "stress": 3})
-        with self.assertRaises(ValidationError):
-            validate_record("subjective", {"date": "2026-11-14", "stress": 3})  # energy 必填
-        r = validate_record("subjective", {"date": "2026-11-14", "energy": 4, "stress": 2})
-        self.assertIsNone(r["mood"])
+            validate_record("subjective", {"date": "2026-11-14", "energy": 4, "stress": 2})
 
     def test_body_ranges(self):
         with self.assertRaises(ValidationError):

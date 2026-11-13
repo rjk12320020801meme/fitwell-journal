@@ -56,7 +56,6 @@ def build_days(records: dict) -> list[dict]:
     for d_str in sorted(dates):
         meals = [r for r in records.get("meal", []) if r["date"] == d_str]
         sleeps = [r for r in records.get("sleep", []) if r["date"] == d_str]
-        subs = [r for r in records.get("subjective", []) if r["date"] == d_str]
         trains = [r for r in records.get("training", []) if r["date"] == d_str]
         bodies = [r for r in records.get("body", []) if r["date"] == d_str]
 
@@ -75,8 +74,6 @@ def build_days(records: dict) -> list[dict]:
             "wake_min": None,
             "bed_offset_min": None,
             "sleep_h": None,
-            "stress": None,
-            "energy": None,
             "trained": bool(trains),
             "weight_kg": None,
         }
@@ -95,11 +92,6 @@ def build_days(records: dict) -> list[dict]:
             gap = last_meal_to_bed(day["bed_min"], meal_times[-1])
             day["last_meal_to_bed_min"] = gap
             day["eat_within_2h_before_bed"] = -120 <= gap <= 120
-
-        if subs:
-            s = subs[-1]
-            day["stress"] = s.get("stress")
-            day["energy"] = s.get("energy")
 
         if bodies:
             w = [b.get("weight_kg") for b in bodies if b.get("weight_kg") is not None]
@@ -127,8 +119,6 @@ def build_series(days: list[dict], start: str, end: str) -> dict:
         "sleep_duration_h": [],
         "bed_offset_min": [],
         "weight_kg": [],
-        "stress": [],
-        "energy": [],
     }
     for d_str in dates:
         d = by_date.get(d_str)
@@ -142,8 +132,6 @@ def build_series(days: list[dict], start: str, end: str) -> dict:
         out["sleep_duration_h"].append(d["sleep_h"])
         out["bed_offset_min"].append(d["bed_offset_min"])
         out["weight_kg"].append(d["weight_kg"])
-        out["stress"].append(d["stress"])
-        out["energy"].append(d["energy"])
     return out
 
 
@@ -198,17 +186,6 @@ def trend_cards(days: list[dict], start: str, end: str) -> list[dict]:
             word = "上升" if delta > 0 else "下降"
             add("体重变化", f"近一周体重均值{word}了 {abs(delta):.1f} 公斤（基于 {len(cb) + len(pb)} 次测量）",
                 "up" if delta > 0 else "down", len(cb) + len(pb))
-
-    # 压力
-    cst = [d["stress"] for d in cur if d["stress"] is not None]
-    pst = [d["stress"] for d in prev if d["stress"] is not None]
-    if cst and pst and len(cst) >= 3 and len(pst) >= 3:
-        delta = _mean(cst) - _mean(pst)
-        if abs(delta) >= 0.5:
-            word = "上升" if delta > 0 else "下降"
-            tail = "，多留意恢复" if delta > 0 else "，方向良好"
-            add("压力评分变化", f"近一周你的压力评分均值{word}了 {abs(delta):.1f} 分{tail}",
-                "up" if delta > 0 else "down", len(cst) + len(pst))
 
     return cards
 

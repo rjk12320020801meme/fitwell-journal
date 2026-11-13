@@ -12,6 +12,7 @@ from pathlib import Path
 from .models import RECORD_TYPES, ValidationError, validate_record
 
 DEFAULT_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "journal.json"
+DEFAULT_SETTINGS_PATH = Path(__file__).resolve().parent.parent / "data" / "settings.json"
 
 
 class JournalStore:
@@ -80,3 +81,25 @@ class JournalStore:
 
     def all_records(self) -> dict:
         return self.query()
+
+    # ---------- 节奏设置（小闹钟目标） ----------
+    @property
+    def settings_path(self) -> Path:
+        return self.path.parent / "settings.json"
+
+    def load_settings(self) -> dict:
+        from .rhythm import DEFAULT_SETTINGS
+        if not self.settings_path.exists():
+            return dict(DEFAULT_SETTINGS)
+        with open(self.settings_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        out = dict(DEFAULT_SETTINGS)
+        out.update({k: v for k, v in data.items() if k in DEFAULT_SETTINGS})
+        return out
+
+    def save_settings(self, settings: dict) -> dict:
+        with self._lock:
+            self.settings_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.settings_path, "w", encoding="utf-8") as f:
+                json.dump(settings, f, ensure_ascii=False, indent=2)
+        return settings

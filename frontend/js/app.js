@@ -46,17 +46,18 @@
   }
 
   const MEAL_LABEL = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐', snack: '加餐' };
-  const TYPE_LABEL = { meal: '饮食', sleep: '睡眠', subjective: '状态', body: '身体', training: '训练', lab: '体检' };
+  const TYPE_LABEL = { meal: '饮食', sleep: '睡眠', body: '身体', training: '训练', lab: '体检' };
 
   /* ==================== 通用小组件 ==================== */
 
-  /** 1–5 五档评分按钮 */
-  function Scale(props) {
+  /** 睡眠质量选择：数据存 1–5，界面只显示文字（不给用户"打分"压力） */
+  const QUALITY_LABEL = { 1: '很差', 2: '较差', 3: '一般', 4: '不错', 5: '很好' };
+  function QualityPicker(props) {
     return html`<div class="scale">
       ${[1, 2, 3, 4, 5].map(function (v) {
         return html`<button key=${v} type="button"
           className=${props.value === v ? 'active' : ''}
-          onClick=${function () { props.onChange(v); }}>${v}</button>`;
+          onClick=${function () { props.onChange(v); }}>${QUALITY_LABEL[v]}</button>`;
       })}
     </div>`;
   }
@@ -76,7 +77,31 @@
   function Empty(props) {
     return html`<div class="empty-state">
       <div class="big">${props.icon || '🌱'}</div>
-      <div>${props.text || '暂无数据'}</div>
+      <div>${props.text || '这里还什么都没有'}</div>
+    </div>`;
+  }
+
+  /* ==================== 今日节奏卡（温和提示，不制造焦虑） ==================== */
+
+  /** phase → 柔和背景色（morning 淡金 / eating 淡绿 / wind_down 淡青 / pre_bed 淡紫 / sleep 深蓝夜色） */
+  function RhythmCard(props) {
+    const rhythm = props.rhythm; // undefined=加载中，null=不可用
+    if (rhythm === undefined) {
+      return html`<div class="card rhythm-card rhythm-neutral">
+        <div class="rhythm-title">正在看看今天的节奏…</div>
+      </div>`;
+    }
+    if (rhythm === null) {
+      return html`<div class="card rhythm-card rhythm-neutral">
+        <div class="rhythm-title">⏰ 今日节奏</div>
+        <div class="rhythm-message">节奏提示暂时不可用</div>
+      </div>`;
+    }
+    return html`<div className=${'rhythm-card rhythm-' + rhythm.phase}>
+      <div class="rhythm-now">${rhythm.now}</div>
+      <div class="rhythm-title">${rhythm.title}</div>
+      <div class="rhythm-message">${rhythm.message}</div>
+      <div class="rhythm-next">下一步：${rhythm.next_label} · ${rhythm.next_time}</div>
     </div>`;
   }
 
@@ -85,6 +110,9 @@
   function TodayTab(props) {
     const notify = props.notify;
     const [records, setRecords] = useState(null); // null=加载中
+
+    // ---- 今日节奏（打开页面取一次，不做轮询）----
+    const [rhythm, setRhythm] = useState(undefined); // undefined=加载中，null=不可用
 
     // ---- 快速记录一餐 ----
     const [mealTime, setMealTime] = useState(nowHM());
@@ -102,13 +130,6 @@
     const [sleepQuality, setSleepQuality] = useState(3);
     const [awakenings, setAwakenings] = useState('0');
     const [napMin, setNapMin] = useState('0');
-
-    // ---- 今日状态（核心：精力 + 压力；其余折叠）----
-    const [energy, setEnergy] = useState(3);
-    const [stress, setStress] = useState(3);
-    const [mood, setMood] = useState(3);
-    const [hunger, setHunger] = useState(3);
-    const [cravings, setCravings] = useState(3);
 
     // ---- 展开层：身体数据 ----
     const [weight, setWeight] = useState('');
@@ -133,6 +154,13 @@
       });
     }
     useEffect(refresh, []);
+    useEffect(function () {
+      API.rhythmToday().then(function (data) {
+        setRhythm(data);
+      }).catch(function () {
+        setRhythm(null); // 节奏提示不可用不阻塞录入
+      });
+    }, []);
 
     function saveMeal() {
       API.createMeal({
@@ -158,17 +186,6 @@
       }).catch(function (e) { notify(e.message, 'error'); });
     }
 
-    function saveSubjective() {
-      API.createSubjective({
-        date: todayStr(),
-        energy: energy, stress: stress, mood: mood,
-        hunger: hunger, cravings: cravings
-      }).then(function () {
-        notify('已记录今日状态 ✓', 'success');
-        refresh();
-      }).catch(function (e) { notify(e.message, 'error'); });
-    }
-
     function saveBody() {
       const body = pickFields({
         weight_kg: weight ? parseFloat(weight) : '',
@@ -177,7 +194,7 @@
         resting_hr: restHr ? parseFloat(restHr) : '',
         hrv_ms: hrv ? parseFloat(hrv) : ''
       }, ['weight_kg', 'waist_cm', 'body_fat_pct', 'resting_hr', 'hrv_ms']);
-      if (!Object.keys(body).length) { notify('请至少填写一项身体数据', 'error'); return; }
+      if (!Object.keys(body).length) { notify('填一项身体数据就可以保存啦', 'error'); return; }
       body.date = todayStr();
       API.createBody(body).then(function () {
         notify('已记录身体数据 ✓', 'success');
@@ -186,7 +203,7 @@
     }
 
     function saveTraining() {
-      if (!trainType) { notify('请填写训练类型', 'error'); return; }
+      if (!trainType) { notify('填一下训练类型就能保存啦', 'error'); return; }
       API.createTraining({
         date: todayStr(), time: trainTime, type: trainType,
         duration_min: parseInt(trainDur, 10) || 0,
@@ -205,10 +222,10 @@
       }).catch(function (e) { notify(e.message, 'error'); });
     }
 
-    // 把六类记录展平为列表行
+    // 把记录展平为列表行
     function flatten(data) {
       const rows = [];
-      (data.meals || []).forEach(function (m) {
+      (data.meal || []).forEach(function (m) {
         rows.push({
           type: 'meal', id: m.id, date: m.date,
           text: m.time + ' ' + (MEAL_LABEL[m.meal_type] || m.meal_type) + (m.description ? ' · ' + m.description : ''),
@@ -219,14 +236,7 @@
         rows.push({
           type: 'sleep', id: s.id, date: s.date,
           text: '上床 ' + s.bed_time + ' → 起床 ' + s.wake_time,
-          sub: '质量 ' + s.quality + '/5 · 醒来 ' + s.awakenings + ' 次 · 午睡 ' + s.nap_min + ' 分钟'
-        });
-      });
-      (data.subjective || []).forEach(function (s) {
-        rows.push({
-          type: 'subjective', id: s.id, date: s.date,
-          text: '精力 ' + s.energy + ' · 压力 ' + s.stress + ' · 心情 ' + s.mood,
-          sub: '饥饿 ' + s.hunger + ' · 渴望 ' + s.cravings
+          sub: '质量 ' + (QUALITY_LABEL[s.quality] || s.quality) + ' · 醒来 ' + s.awakenings + ' 次 · 午睡 ' + s.nap_min + ' 分钟'
         });
       });
       (data.body || []).forEach(function (b) {
@@ -260,9 +270,11 @@
     const rows = records ? flatten(records) : [];
 
     return html`<div>
+      <${RhythmCard} rhythm=${rhythm} />
+
       <div class="card">
         <div class="card-title">⚡ 30 秒快速记录</div>
-        <p class="card-hint">只填核心三样：一餐、睡眠、今日状态。其余在下方折叠里按需补充。</p>
+        <p class="card-hint">只填客观事实：一餐、睡眠。体重和训练在下方折叠里按需补充。</p>
 
         <div class="field">
           <label>记录一餐</label>
@@ -305,7 +317,7 @@
           <div class="field-row">
             <div class="field">
               <label>睡眠质量（1-5）</label>
-              <${Scale} value=${sleepQuality} onChange=${setSleepQuality} />
+              <${QualityPicker} value=${sleepQuality} onChange=${setSleepQuality} />
             </div>
           </div>
           <details class="fold">
@@ -324,25 +336,6 @@
             </div>
           </details>
           <button class="btn btn-primary btn-block" type="button" onClick=${saveSleep}>记录睡眠</button>
-        </div>
-
-        <div class="field">
-          <label>今日状态</label>
-          <div class="field">
-            <label>精力</label>
-            <${Scale} value=${energy} onChange=${setEnergy} />
-          </div>
-          <div class="field">
-            <label>压力</label>
-            <${Scale} value=${stress} onChange=${setStress} />
-          </div>
-          <details class="fold">
-            <summary>心情 / 饥饿 / 渴望（可选）</summary>
-            <div class="field"><label>心情</label><${Scale} value=${mood} onChange=${setMood} /></div>
-            <div class="field"><label>饥饿感</label><${Scale} value=${hunger} onChange=${setHunger} /></div>
-            <div class="field"><label>对食物的渴望</label><${Scale} value=${cravings} onChange=${setCravings} /></div>
-          </details>
-          <button class="btn btn-primary btn-block" type="button" onClick=${saveSubjective}>记录今日状态</button>
         </div>
       </div>
 
@@ -392,9 +385,9 @@
       </details>
 
       <div class="card">
-        <div class="card-title">📋 今日已记录</div>
+        <div class="card-title">📋 最近记录</div>
         ${rows.length === 0
-          ? html`<${Empty} text="还没有记录，从上面 30 秒开始" icon="🕐" />`
+          ? html`<${Empty} text="还没有记录，想起来时点两下就好" icon="🕐" />`
           : html`<ul class="record-list">
               ${rows.map(function (r) {
                 return html`<li class="record-item" key=${r.type + '-' + r.id}>
@@ -417,27 +410,49 @@
 
   /* ==================== Tab 2：周报 ==================== */
 
-  /** 单个分数卡：分数 + 等级徽章 + 一句话结论 + 因子明细折叠 */
+  /** 分数 → 文字档位（弱化数字，重点看趋势） */
+  function tierOf(score) {
+    if (score >= 85) return '很稳';
+    if (score >= 70) return '不错';
+    return '可调整';
+  }
+  /** 因子行的档位词 */
+  function factorTierOf(score) {
+    if (score >= 85) return '良好';
+    if (score >= 70) return '不错';
+    return '可调整';
+  }
+  const TIER_CLASS = { '很稳': 'tier-good', '良好': 'tier-good', '不错': 'tier-ok', '可调整': 'tier-adjust' };
+
+  /** 单个档位卡：文字档位徽章 + 一句话结论 + 因子明细折叠 */
   function ScoreCard(props) {
     const factors = props.factors || [];
-    let worst = null;
-    factors.forEach(function (f) { if (!worst || f.score < worst.score) worst = f; });
+    if (props.score == null) {
+      return html`<div class="score-card">
+        <div class="score-label">${props.title}</div>
+        <div class="empty-state"><div class="big">🌱</div><div>继续记录，趋势会慢慢显现</div></div>
+      </div>`;
+    }
+    const tier = tierOf(props.score);
     let summary;
-    if (props.score >= 80) summary = '整体规律良好，继续保持';
-    else if (props.score >= 60) summary = (worst ? '建议关注' + worst.name : '总体尚可');
-    else summary = (worst ? worst.name + '偏弱，建议优先改善' : '建议优先改善');
+    if (tier === '很稳') summary = '节奏很稳，继续保持';
+    else if (tier === '不错') summary = '整体不错，继续保持';
+    else summary = '有可以调整的地方，想起来时优化一下就好';
     return html`<div class="score-card">
       <div class="score-label">${props.title}</div>
-      <div class="score-value">${props.score}</div>
-      <span className=${'grade-badge grade-' + props.grade}>${props.grade}</span>
+      <div class="score-tier-row">
+        <span className=${'tier-badge ' + TIER_CLASS[tier]}>${tier}</span>
+        <span class="score-ref">参考分 ${props.score}</span>
+      </div>
       <div class="score-summary">${summary}</div>
       ${factors.length ? html`<details class="fold">
-        <summary>评分明细</summary>
+        <summary>看看是哪些方面</summary>
         ${factors.map(function (f, i) {
+          const ft = factorTierOf(f.score);
           return html`<div class="factor-row" key=${i}>
             <div class="factor-head">
               <span>${f.name}</span>
-              <span>${f.score}</span>
+              <span className=${'factor-tier ' + TIER_CLASS[ft]}>${ft}</span>
             </div>
             <div class="factor-bar"><span style=${{ width: Math.max(0, Math.min(100, f.score)) + '%' }}></span></div>
             <div class="factor-detail">${f.detail}</div>
@@ -483,14 +498,14 @@
       </div>
 
       ${loading ? html`<${Empty} text="正在生成周报…" icon="⏳" />` : null}
-      ${!loading && !report ? html`<${Empty} text="本周还没有足够数据，先记录几天再来看趋势" icon="📭" />` : null}
+      ${!loading && !report ? html`<${Empty} text="继续记录，趋势会慢慢显现" icon="📭" />` : null}
 
       ${report ? html`<div>
         <div class="score-grid">
-          <${ScoreCard} title="代谢规律分" score=${report.metabolic.score}
-            grade=${report.metabolic.grade} factors=${report.metabolic.factors} />
-          <${ScoreCard} title="睡眠规律分" score=${report.sleep.score}
-            grade=${report.sleep.grade} factors=${report.sleep.factors} />
+          <${ScoreCard} title="代谢规律" score=${report.metabolic.score}
+            factors=${report.metabolic.factors} />
+          <${ScoreCard} title="睡眠规律" score=${report.sleep.score}
+            factors=${report.sleep.factors} />
         </div>
 
         <div class="chart-wrap">
@@ -645,6 +660,36 @@
     const [health, setHealth] = useState({ status: 'unknown', version: '' });
     const fileRef = useRef(null);
 
+    // ---- 节奏目标（小闹钟的提醒时刻）----
+    const [rhythmCfg, setRhythmCfg] = useState({
+      window_start: '10:00', window_end: '19:00',
+      bed_target: '23:00', wake_target: '07:00'
+    });
+
+    function setCfg(key, val) {
+      const next = {};
+      Object.keys(rhythmCfg).forEach(function (k) { next[k] = rhythmCfg[k]; });
+      next[key] = val;
+      setRhythmCfg(next);
+    }
+
+    useEffect(function () {
+      API.settings().then(function (data) {
+        setRhythmCfg({
+          window_start: data.window_start || '10:00',
+          window_end: data.window_end || '19:00',
+          bed_target: data.bed_target || '23:00',
+          wake_target: data.wake_target || '07:00'
+        });
+      }).catch(function () { /* 回填不打扰，保留默认值 */ });
+    }, []);
+
+    function saveRhythm() {
+      API.saveSettings(rhythmCfg).then(function () {
+        notify('节奏目标已保存 ✓', 'success');
+      }).catch(function (e) { notify(e.message, 'error'); });
+    }
+
     function checkHealth() {
       setHealth({ status: 'unknown', version: health.version });
       API.health().then(function (data) {
@@ -673,17 +718,13 @@
 
     /** 数据导入：按类型逐条 POST */
     const IMPORT_MAP = {
-      meals: {
+      meal: {
         api: 'createMeal',
         fields: ['date', 'time', 'meal_type', 'description', 'portion', 'notes']
       },
       sleep: {
         api: 'createSleep',
         fields: ['date', 'bed_time', 'wake_time', 'quality', 'awakenings', 'nap_min']
-      },
-      subjective: {
-        api: 'createSubjective',
-        fields: ['date', 'energy', 'stress', 'mood', 'hunger', 'cravings']
       },
       body: {
         api: 'createBody',
@@ -716,13 +757,45 @@
             } catch (e) { fail++; }
           }
         }
-        notify('导入完成：成功 ' + ok + ' 条，失败 ' + fail + ' 条', fail ? 'error' : 'success');
+        notify(fail
+          ? '导入完成：成功 ' + ok + ' 条，' + fail + ' 条没能导入，可以稍后再试'
+          : '导入完成：成功 ' + ok + ' 条', fail ? 'error' : 'success');
       } catch (e) {
-        notify('导入失败：文件格式不正确', 'error');
+        notify('导入没能完成：文件格式不正确', 'error');
       }
     }
 
     return html`<div>
+      <div class="card">
+        <div class="card-title">⏰ 节奏目标</div>
+        <p class="card-hint">设定你的节奏，小闹钟就按这个提醒你</p>
+        <div class="field-row">
+          <div class="field">
+            <label>进食窗口开启</label>
+            <input type="time" value=${rhythmCfg.window_start}
+              onChange=${function (e) { setCfg('window_start', e.target.value); }} />
+          </div>
+          <div class="field">
+            <label>进食窗口收尾</label>
+            <input type="time" value=${rhythmCfg.window_end}
+              onChange=${function (e) { setCfg('window_end', e.target.value); }} />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>目标就寝</label>
+            <input type="time" value=${rhythmCfg.bed_target}
+              onChange=${function (e) { setCfg('bed_target', e.target.value); }} />
+          </div>
+          <div class="field">
+            <label>目标起床</label>
+            <input type="time" value=${rhythmCfg.wake_target}
+              onChange=${function (e) { setCfg('wake_target', e.target.value); }} />
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" type="button" onClick=${saveRhythm}>保存节奏目标</button>
+      </div>
+
       <div class="card">
         <div class="card-title">⚙️ 设置</div>
 
@@ -765,7 +838,7 @@
 
       <div class="card">
         <div class="card-title">ℹ️ 关于</div>
-        <div class="setting-sub">FitWell Journal 健身健康日志 · v0.1.0</div>
+        <div class="setting-sub">FitWell Journal 健身健康日志 · v0.1.1</div>
         <div class="disclaimer">
           本工具输出为趋势洞察，不构成医疗诊断或医疗建议。
           如有健康问题请及时就医，任何数据解读都不能替代专业医疗意见。
@@ -824,4 +897,12 @@
   // 挂载
   const root = ReactDOM.createRoot(document.getElementById('root'));
   root.render(html`<${App} />`);
+
+  // 暴露组件供冒烟/渲染测试使用（不影响业务逻辑）
+  global.FitWell = {
+    App: App, TodayTab: TodayTab, ReportTab: ReportTab,
+    RecipesTab: RecipesTab, SettingsTab: SettingsTab,
+    ScoreCard: ScoreCard, RhythmCard: RhythmCard, QualityPicker: QualityPicker,
+    tierOf: tierOf, factorTierOf: factorTierOf
+  };
 })(window);

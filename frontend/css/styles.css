@@ -258,25 +258,25 @@ details.fold[open] > summary { margin-bottom: 10px; }
   padding: 16px;
   text-align: center;
 }
-.score-value {
-  font-size: 40px;
-  font-weight: 800;
-  line-height: 1.1;
-  color: var(--color-primary-dark);
-}
 .score-label { font-size: 13px; color: var(--color-muted); }
-.grade-badge {
-  display: inline-block;
+.score-tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   margin: 6px 0;
-  padding: 2px 12px;
+}
+.tier-badge {
+  display: inline-block;
+  padding: 3px 16px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
 }
-.grade-A { background: #DCFCE7; color: #166534; }
-.grade-B { background: #DBEAFE; color: #1E40AF; }
-.grade-C { background: #FEF3C7; color: #92400E; }
-.grade-D { background: #FEE2E2; color: #991B1B; }
+.tier-good { background: #DCFCE7; color: #166534; }   /* 很稳/良好：绿 */
+.tier-ok { background: #CCFBF1; color: #115E59; }     /* 不错：青 */
+.tier-adjust { background: #FEF3C7; color: #92400E; } /* 可调整：琥珀（温和不刺眼） */
+.score-ref { font-size: 11px; color: var(--color-muted); }
 .score-summary {
   font-size: 12px;
   color: var(--color-muted);
@@ -290,6 +290,7 @@ details.fold[open] > summary { margin-bottom: 10px; }
   font-size: 13px;
   margin-bottom: 4px;
 }
+.factor-tier { font-weight: 600; }
 .factor-bar {
   height: 6px;
   border-radius: 999px;
@@ -520,6 +521,43 @@ details.fold[open] > summary { margin-bottom: 10px; }
   font-size: 14px;
 }
 .empty-state .big { font-size: 32px; margin-bottom: 8px; }
+
+/* ---------- 今日节奏卡（小闹钟，温和不催促） ---------- */
+.rhythm-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 18px 16px 14px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
+}
+.rhythm-now {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.rhythm-title {
+  margin: 0 0 6px;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.rhythm-message { font-size: 14px; line-height: 1.7; }
+.rhythm-next {
+  margin-top: 10px;
+  padding-top: 8px;
+  font-size: 12px;
+  opacity: 0.8;
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
+}
+/* phase 柔和背景色 */
+.rhythm-morning { background: #FBF3D5; color: #7A5B10; }    /* 淡金 */
+.rhythm-eating { background: #DFF3E6; color: #1B5E37; }     /* 淡绿 */
+.rhythm-wind_down { background: #DAF0F5; color: #155E6B; }  /* 淡青 */
+.rhythm-pre_bed { background: #E9E3FA; color: #4C3A8E; }    /* 淡紫 */
+.rhythm-sleep { background: #22304C; color: #DCE7F5; }      /* 深蓝夜色 */
+.rhythm-neutral { background: var(--color-surface); color: var(--color-muted); }
 
 /* ---------- 桌面端适配 ---------- */
 @media (min-width: 768px) {

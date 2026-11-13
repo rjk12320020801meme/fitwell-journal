@@ -46,7 +46,7 @@ class TestTrendCards(unittest.TestCase):
 class TestWeeklyReport(unittest.TestCase):
     def test_report_structure(self):
         records = {
-            "meal": [], "sleep": [], "subjective": [], "body": [], "training": [], "lab": [],
+            "meal": [], "sleep": [], "body": [], "training": [], "lab": [],
         }
         # 手工填充 14 天记录
         for i in range(1, 15):
@@ -57,7 +57,6 @@ class TestWeeklyReport(unittest.TestCase):
                 {"date": d, "time": "18:30", "meal_type": "dinner"},
             ]
             records["sleep"].append({"date": d, "bed_time": "23:00", "wake_time": "07:00"})
-            records["subjective"].append({"date": d, "energy": 4, "stress": 2})
         r = weekly_report(records, end_date="2026-11-14")
         self.assertEqual(r["period"], {"start": "2026-11-08", "end": "2026-11-14"})
         self.assertGreaterEqual(r["metabolic"]["score"], 85)
@@ -66,7 +65,7 @@ class TestWeeklyReport(unittest.TestCase):
         self.assertIsInstance(r["cards"], list)
 
     def test_empty_report(self):
-        records = {"meal": [], "sleep": [], "subjective": [], "body": [], "training": [], "lab": []}
+        records = {"meal": [], "sleep": [], "body": [], "training": [], "lab": []}
         r = weekly_report(records, end_date="2026-11-14")
         self.assertIsNone(r["metabolic"]["score"])
         self.assertIsNone(r["sleep"]["score"])

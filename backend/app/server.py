@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 
 from .models import RECORD_TYPES, ValidationError
 from .recipes import get_recipe, list_recipes
+from .rhythm import rhythm_status, validate_settings
 from .storage import JournalStore
 from .trends import weekly_report
 
@@ -73,6 +74,32 @@ def report_weekly(end_date: str | None = Query(None)):
         except ValueError:
             raise HTTPException(422, "end_date 需为 YYYY-MM-DD")
     return weekly_report(store.all_records(), end_date)
+
+
+# ---------- 节奏（小闹钟） ----------
+@app.get("/api/settings")
+def get_settings():
+    return store.load_settings()
+
+
+@app.put("/api/settings")
+def put_settings(payload: dict):
+    try:
+        settings = validate_settings(payload)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return store.save_settings(settings)
+
+
+@app.get("/api/rhythm/today")
+def rhythm_today(now: str | None = Query(None, description="HH:MM，测试用")):
+    if now:
+        try:
+            from .rhythm import _parse_hhmm
+            _parse_hhmm(now)
+        except ValueError:
+            raise HTTPException(422, "now 需为 HH:MM")
+    return rhythm_status(store.load_settings(), now)
 
 
 # ---------- 食谱 ----------

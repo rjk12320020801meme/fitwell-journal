@@ -15,9 +15,10 @@ require(path.join(__dirname, '..', 'js', 'api.js'));
 require(path.join(__dirname, '..', 'js', 'charts.js'));
 
 // 1) API 封装导出完整
-const apiFns = ['createMeal', 'createSleep', 'createSubjective', 'createBody',
+const apiFns = ['createMeal', 'createSleep', 'createBody',
   'createTraining', 'createLab', 'listRecords', 'deleteRecord',
-  'weeklyReport', 'recipes', 'recipe', 'health'];
+  'weeklyReport', 'settings', 'saveSettings', 'rhythmToday',
+  'recipes', 'recipe', 'health'];
 apiFns.forEach(function (f) {
   if (typeof global.API[f] !== 'function') throw new Error('API 缺少 ' + f);
 });
